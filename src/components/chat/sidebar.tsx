@@ -11,7 +11,8 @@ import {
     PanelLeftOpen,
     Trash2,
     LogOut,
-    LogIn
+    LogIn,
+    Loader2
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
@@ -37,6 +38,7 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
     const [editValue, setEditValue] = React.useState("")
     const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
     const [conversationToDelete, setConversationToDelete] = React.useState<string | null>(null)
+    const [isDeleting, setIsDeleting] = React.useState(false)
     const { data: session } = useSession()
 
     const sortedConversations = conversations
@@ -365,15 +367,28 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
                                     Cancel
                                 </button>
                                 <Button
-                                    onClick={() => {
+                                    disabled={isDeleting}
+                                    onClick={async () => {
                                         if (conversationToDelete) {
-                                            deleteConversation(conversationToDelete)
-                                            setConversationToDelete(null)
+                                            setIsDeleting(true)
+                                            try {
+                                                await deleteConversation(conversationToDelete)
+                                            } finally {
+                                                setIsDeleting(false)
+                                                setConversationToDelete(null)
+                                            }
                                         }
                                     }}
-                                    className="h-9 px-6 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-bold uppercase tracking-[0.15em] transition-all rounded-lg"
+                                    className="h-9 px-6 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 text-[11px] font-bold uppercase tracking-[0.15em] transition-all rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                    Delete Chat
+                                    {isDeleting ? (
+                                        <>
+                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            Deleting...
+                                        </>
+                                    ) : (
+                                        "Delete Chat"
+                                    )}
                                 </Button>
                             </div>
                         </motion.div>
