@@ -55,14 +55,6 @@ function createNewConversationLocally(): Conversation {
 }
 
 export const useChatStore = create<ChatStore>((set, get) => {
-    const initial = createNewConversationLocally()
-
-    // Get initial ID from sessionStorage if available
-    const getStoredActiveId = () => {
-        if (typeof window === 'undefined') return null
-        return sessionStorage.getItem('active-conversation-id')
-    }
-
     return {
         conversations: [],
         activeConversationId: null,
@@ -83,6 +75,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 const dbConversations = await res.json()
 
                 // Map simple conversation data without messages (lazy-load later)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const mappedConversations: Conversation[] = dbConversations.map((conv: Record<string, any>) => ({
                     id: conv.id as string,
                     title: conv.title as string,
@@ -302,11 +295,20 @@ export const useChatStore = create<ChatStore>((set, get) => {
                     const imageUrls = api.prepareImageUrls(message)
 
                     if (isEdit) {
-                        await api.updateMessage(actualConversationId, {
+                        const res = await api.updateMessage(actualConversationId, {
                             messageId: message.id,
                             content: message.content,
                             imageUrls,
                         })
+
+                        if (res.status === 404) {
+                            // If the message was never saved during a previous stream creation failure, fallback to POST
+                            await api.createMessage(actualConversationId, {
+                                role: message.role,
+                                content: message.content,
+                                imageUrls,
+                            })
+                        }
                     } else {
                         await api.createMessage(actualConversationId, {
                             role: message.role,
@@ -380,7 +382,14 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
             try {
                 const msgsRes = await api.fetchMessages(id)
-                if (!msgsRes.ok) return
+                if (!msgsRes.ok) {
+                    set((state) => ({
+                        conversations: state.conversations.map((c) =>
+                            c.id === id ? { ...c, isLoadingMessages: false } : c
+                        )
+                    }))
+                    return
+                }
                 const msgs = await msgsRes.json()
 
                 const mappedMessages: Message[] = msgs.map((m: Record<string, unknown>) => ({

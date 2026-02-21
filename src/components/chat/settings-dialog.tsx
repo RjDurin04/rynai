@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 
 import * as React from "react"
@@ -15,7 +16,7 @@ interface SettingsDialogProps {
 
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
     const [activeTab, setActiveTab] = React.useState("profile")
-    const { data: session, isPending } = authClient.useSession()
+    const { data: session } = authClient.useSession()
     const clearAllConversations = useChatStore((s) => s.clearAllConversations)
 
     // Profile state

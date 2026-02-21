@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 
 import * as React from "react"
@@ -39,6 +40,7 @@ export function ChatInput({
     const fileInputRef = React.useRef<HTMLInputElement>(null)
     const [mediaRecorderRef, setMediaRecorderRef] = React.useState<MediaRecorder | null>(null)
     const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null)
+    const [mounted, setMounted] = React.useState(false)
     const { data: session } = useSession()
     const router = useRouter()
 
@@ -49,6 +51,11 @@ export function ChatInput({
             textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
         }
     }
+
+    // Prevent hydration mismatch by only rendering session-dependent UI after mount
+    React.useEffect(() => {
+        setMounted(true)
+    }, [])
 
     // Handle external input setting (e.g. from Edit button)
     React.useEffect(() => {
@@ -79,10 +86,22 @@ export function ChatInput({
         }
     }, [])
 
+    const hasValidModel = React.useMemo(() => {
+        const filteredModels = MODELS.filter(m => {
+            if (webSearch && !m.capabilities.search) return false;
+            if (images.length > 0 && !m.capabilities.vision) return false;
+            if (!webSearch && images.length === 0 && !m.capabilities.text) return false;
+            return true;
+        });
+        return filteredModels.length > 0;
+    }, [webSearch, images.length]);
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
-            handleSend()
+            if (hasValidModel && !isLoading) {
+                handleSend()
+            }
         }
     }
 
@@ -389,9 +408,11 @@ export function ChatInput({
                             router.push("/login")
                             return
                         }
+                        if (webSearch) return; // Prevent uploading if web search is enabled
                         fileInputRef.current?.click()
                     }}
-                    className="h-8 w-8 shrink-0 rounded-full text-muted-foreground/40 hover:text-foreground hover:bg-transparent transition-all"
+                    disabled={webSearch}
+                    className="h-8 w-8 shrink-0 rounded-full text-muted-foreground/40 disabled:opacity-30 disabled:cursor-not-allowed hover:text-foreground hover:bg-transparent transition-all"
                     title="Attach image"
                 >
                     <Plus className="h-5 w-5" />
@@ -418,31 +439,15 @@ export function ChatInput({
                         >
                             <Button
                                 onClick={handleSend}
-                                disabled={isLoading || (() => {
-                                    const filteredModels = MODELS.filter(m => {
-                                        if (webSearch && !m.capabilities.search) return false;
-                                        if (images.length > 0 && !m.capabilities.vision) return false;
-                                        if (!webSearch && images.length === 0 && !m.capabilities.text) return false;
-                                        return true;
-                                    });
-                                    return filteredModels.length === 0;
-                                })()}
+                                disabled={isLoading || !hasValidModel}
                                 size="icon"
                                 className="h-8 w-8 rounded-full bg-white text-black hover:bg-white/90 active:scale-95 transition-all"
-                                title={(() => {
-                                    const filteredModels = MODELS.filter(m => {
-                                        if (webSearch && !m.capabilities.search) return false;
-                                        if (images.length > 0 && !m.capabilities.vision) return false;
-                                        if (!webSearch && images.length === 0 && !m.capabilities.text) return false;
-                                        return true;
-                                    });
-                                    return filteredModels.length === 0 ? "No compatible model for current mode" : "Send message";
-                                })()}
+                                title={!hasValidModel ? "No compatible model for current mode" : "Send message"}
                             >
                                 <Send className="h-4 w-4 mr-0.5" />
                             </Button>
                         </motion.div>
-                    ) : session ? (
+                    ) : (mounted && session) ? (
                         <button
                             onClick={isRecording ? stopRecording : startRecording}
                             disabled={isTranscribing}
@@ -483,11 +488,15 @@ export function ChatInput({
 
                     <div className="h-3 w-px bg-white/10 mx-1" />
                     <button
-                        onClick={() => setWebSearch(!webSearch)}
+                        onClick={() => {
+                            if (images.length > 0) return; // Prevent enabling web search if images exist
+                            setWebSearch(!webSearch)
+                        }}
+                        disabled={images.length > 0}
                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-sm cursor-pointer transition-all duration-300 group relative overflow-hidden ${webSearch
                             ? "bg-white/5"
                             : "hover:bg-white/5 bg-transparent"
-                            }`}
+                            } ${images.length > 0 ? "opacity-30 cursor-not-allowed" : ""}`}
                     >
                         <Globe className={`h-3 w-3 transition-all duration-300 ${webSearch ? "text-foreground" : "text-muted-foreground/40 group-hover:text-muted-foreground/60"
                             }`} />

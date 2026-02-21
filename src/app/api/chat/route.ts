@@ -32,8 +32,31 @@ function buildGroqMessages(
     const trimmed = messages.slice(-MAX_HISTORY_MESSAGES)
     const isVisionModel = VISION_MODELS.includes(model)
 
-    for (const msg of trimmed) {
-        if (msg.role === "user" && msg.images && msg.images.length > 0) {
+    const contentMessages: ChatCompletionMessageParam[] = []
+
+    // We only allow a maximum of 5 images total across the entire history
+    let totalImagesIncluded = 0;
+    const MAX_HISTORY_IMAGES = 5;
+
+    for (let i = trimmed.length - 1; i >= 0; i--) {
+        const msg = trimmed[i]
+
+        let imagesToInclude = msg.images || [];
+        if (msg.role === "user" && imagesToInclude.length > 0) {
+            const remainingSlots = MAX_HISTORY_IMAGES - totalImagesIncluded;
+            if (remainingSlots > 0) {
+                imagesToInclude = imagesToInclude.slice(-remainingSlots);
+                totalImagesIncluded += imagesToInclude.length;
+            } else {
+                imagesToInclude = [];
+            }
+        } else {
+            imagesToInclude = [];
+        }
+
+        const shouldIncludeImage = imagesToInclude.length > 0;
+
+        if (shouldIncludeImage) {
             if (isVisionModel) {
                 // Multi-modal format for vision models
                 const content: Array<
@@ -41,33 +64,37 @@ function buildGroqMessages(
                     | { type: "image_url"; image_url: { url: string } }
                 > = [{ type: "text", text: msg.content }]
 
-                for (const img of msg.images) {
-                    content.push({
-                        type: "image_url",
-                        image_url: { url: img.url || img.base64 || "" },
-                    })
+                for (const img of imagesToInclude) {
+                    // Try to use URL if present, otherwise fallback to base64
+                    const finalUrl = (img.url && img.url.startsWith("http")) ? img.url : img.base64
+                    if (finalUrl) {
+                        content.push({
+                            type: "image_url",
+                            image_url: { url: finalUrl },
+                        })
+                    }
                 }
 
-                groqMessages.push({
+                contentMessages.unshift({
                     role: "user",
                     content: content as ChatCompletionMessageParam["content"],
                 } as ChatCompletionMessageParam)
             } else {
                 // Non-vision models expect content to be a string
-                // We flatten the message and just send the text content
-                groqMessages.push({
+                contentMessages.unshift({
                     role: "user",
                     content: msg.content || "Uploaded an image",
                 })
             }
         } else {
-            groqMessages.push({
-                role: msg.role,
-                content: msg.content,
+            contentMessages.unshift({
+                role: msg.role as "user" | "assistant",
+                content: msg.content || (msg.images?.length ? "Uploaded an image" : ""),
             })
         }
     }
 
+    groqMessages.push(...contentMessages)
     return groqMessages
 }
 
@@ -129,14 +156,19 @@ export async function POST(request: Request) {
             }
         }
 
-        // Determine model
-        let model: string
+        // Determine model strictly based on payload constraints
+        let model: string = body.model || MODEL_CHAT
+
         if (useWebSearch) {
-            model = body.model || MODEL_SEARCH
+            // If it's a web search but model is not compound, strictly enforce search model
+            if (!model.startsWith("groq/compound")) {
+                model = MODEL_SEARCH
+            }
         } else if (hasImages) {
-            model = body.model || MODEL_VISION
-        } else {
-            model = body.model || MODEL_CHAT
+            // If it has images but model is not a vision model, strictly enforce vision model
+            if (!VISION_MODELS.includes(model)) {
+                model = MODEL_VISION
+            }
         }
 
         const isSearchModel = model.startsWith("groq/compound")
@@ -160,6 +192,7 @@ export async function POST(request: Request) {
                 messages: groqMessages,
                 temperature: 0.7,
                 max_tokens: 4096, // Use max_tokens for Groq standard
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any) // Type cast to allow max_tokens if SDK type is strictly OpenAI-like
 
             const message = completion.choices[0]?.message
@@ -203,6 +236,7 @@ export async function POST(request: Request) {
             max_tokens: 4096,
             top_p: 1,
             stream: true,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)
 
         const encoder = new TextEncoder()

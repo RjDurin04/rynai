@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client"
 
 import * as React from "react"
@@ -8,11 +10,11 @@ import { ErrorBanner } from "@/components/chat/error-banner"
 
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { Bot, User as UserIcon, Sparkles, Globe, ExternalLink, AlertCircle, Volume2, Square, Loader2, Copy, RotateCcw, Pencil } from "lucide-react"
+import { Globe, ExternalLink, AlertCircle, Volume2, Square, Loader2, Copy, RotateCcw, Pencil, User as UserIcon } from "lucide-react"
 import { useChatStore } from "@/lib/store/chat-store"
 import { useSendMessage } from "@/hooks/use-send-message"
 import { authClient } from "@/lib/auth-client"
-import type { ImageAttachment, Message, SearchResult, ChatModel } from "@/types/chat"
+import type { ChatModel } from "@/types/chat"
 
 export default function ChatPage() {
   const { data: session, isPending: isSessionLoading } = authClient.useSession()
@@ -21,12 +23,10 @@ export default function ChatPage() {
     s.conversations.find((c) => c.id === s.activeConversationId)
   )
   const setConversationModel = useChatStore((s) => s.setConversationModel)
-  const setDraftModel = useChatStore((s) => s.setDraftModel)
   const draftModel = useChatStore((s) => s.draftModel)
   const loadConversations = useChatStore((s) => s.loadConversations)
   const isLoaded = useChatStore((s) => s.isLoaded)
-  const conversations = useChatStore((s) => s.conversations)
-  const { handleSendMessage, isLoading, abortRef, onConversationChange } = useSendMessage()
+  const { handleSendMessage, isLoading, onConversationChange } = useSendMessage()
   const [speakingId, setSpeakingId] = React.useState<string | null>(null)
   const [isSpeakingLoading, setIsSpeakingLoading] = React.useState(false)
   const scrollRef = React.useRef<HTMLDivElement>(null)

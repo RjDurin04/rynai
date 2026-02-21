@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Mail, ArrowLeft, CheckCircle2, RotateCw } from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Suspense, useState, useEffect } from "react";
 import { sendVerificationEmail } from "@/lib/auth-client";
 import { toast } from "sonner";

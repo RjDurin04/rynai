@@ -27,13 +27,13 @@ describe("isConnectionError", () => {
 
     it("returns true for cause.code ENOTFOUND", () => {
         const err = new Error("some error")
-            ; (err as any).cause = { code: "ENOTFOUND" }
+            ; (err as Error & { cause?: unknown }).cause = { code: "ENOTFOUND" }
         expect(isConnectionError(err)).toBe(true)
     })
 
     it("returns true for cause.code ECONNRESET", () => {
         const err = new Error("some error")
-            ; (err as any).cause = { code: "ECONNRESET" }
+            ; (err as Error & { cause?: unknown }).cause = { code: "ECONNRESET" }
         expect(isConnectionError(err)).toBe(true)
     })
 

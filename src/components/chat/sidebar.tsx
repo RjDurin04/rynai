@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client"
 
 import * as React from "react"
@@ -8,7 +9,6 @@ import {
     User,
     PanelLeftClose,
     PanelLeftOpen,
-    Sparkles,
     Trash2,
     LogOut,
     LogIn
@@ -23,17 +23,6 @@ import { useSession, signOut } from "@/lib/auth-client"
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {
     isCollapsed: boolean
     setIsCollapsed: (collapsed: boolean) => void
-}
-
-function timeAgo(timestamp: number): string {
-    const seconds = Math.floor((Date.now() - timestamp) / 1000)
-    if (seconds < 60) return "Just now"
-    const minutes = Math.floor(seconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
-    const hours = Math.floor(minutes / 60)
-    if (hours < 24) return `${hours}h ago`
-    const days = Math.floor(hours / 24)
-    return `${days}d ago`
 }
 
 export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps) {
@@ -58,7 +47,6 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
         const now = new Date()
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
         const yesterday = today - 86400000
-        const lastWeek = today - 86400000 * 7
 
         return {
             today: sortedConversations.filter(c => c.updatedAt >= today),

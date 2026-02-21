@@ -168,7 +168,6 @@ export function ModelSelector({
     // Auto-switch logic
     React.useEffect(() => {
         const isValid = filteredModels.some(m => m.id === currentModel)
-        const becameConstrained = (hasImages && !prevConstraintsRef.current.hasImages) || (isWebSearch && !prevConstraintsRef.current.isWebSearch)
         const becameUnconstrained = (!hasImages && prevConstraintsRef.current.hasImages) || (!isWebSearch && prevConstraintsRef.current.isWebSearch)
 
         if (!isValid && filteredModels.length > 0) {

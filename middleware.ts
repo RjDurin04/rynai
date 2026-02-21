@@ -20,6 +20,7 @@ function isPublicPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl
+    console.log(`[Middleware] Running for path: "${pathname}"`)
 
     // Allow public paths
     if (isPublicPath(pathname)) {
@@ -40,6 +41,7 @@ export async function middleware(request: NextRequest) {
         }
 
         // Page routes → redirect to login
+        console.log(`[Middleware] Missing session, redirecting to login from: "${pathname}"`)
         const loginUrl = new URL("/login", request.url)
         loginUrl.searchParams.set("callbackUrl", pathname)
         return NextResponse.redirect(loginUrl)

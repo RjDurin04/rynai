@@ -57,7 +57,6 @@ export function useSendMessage(): UseSendMessageReturn {
     ) => {
         const state = useChatStore.getState()
         const { addMessage, updateMessage, persistMessage } = state
-        const activeConversation = state.getActiveConversation()
 
         let currentId = state.activeConversationId
         let assistantId = retryAssistantId
@@ -279,7 +278,10 @@ export function useSendMessage(): UseSendMessageReturn {
                     }
                     isActualizingRef.current = true
                     const newId = await persistMessage(currentId, userMsg, !!editingMessageId)
-                    if (newId) persistedId = newId
+                    if (newId) {
+                        persistedId = newId
+                        currentId = newId // Update currentId so stream updates apply to the correct DB ID
+                    }
                 }
                 if (assistantMsg) {
                     isActualizingRef.current = true
@@ -314,7 +316,10 @@ export function useSendMessage(): UseSendMessageReturn {
                     }
                     isActualizingRef.current = true
                     const newId2 = await persistMessage(currentId, userMsg2, !!editingMessageId)
-                    if (newId2) persistedId2 = newId2
+                    if (newId2) {
+                        persistedId2 = newId2
+                        currentId = newId2 // Update currentId so stream updates apply to the correct DB ID
+                    }
                 }
                 if (assistantMsg2) {
                     isActualizingRef.current = true

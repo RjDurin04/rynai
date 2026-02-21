@@ -47,7 +47,7 @@ export function SignInForm({ onSignUpClick }: SignInFormProps) {
                 provider: "google",
                 callbackURL: window.location.origin + "/", // Redirect to home page
             });
-        } catch (error) {
+        } catch {
             toast.error("Failed to sign in with Google");
         } finally {
             setIsLoading(false);
@@ -81,7 +81,7 @@ export function SignInForm({ onSignUpClick }: SignInFormProps) {
                     setIsLoading(false);
                 }
             });
-        } catch (error) {
+        } catch {
             // error handled in onError
         }
     };

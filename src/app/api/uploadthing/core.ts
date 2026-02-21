@@ -17,7 +17,7 @@ export const ourFileRouter = {
             if (!session) throw new UploadThingError("Unauthorized")
             return { userId: session.user.id }
         })
-        .onUploadComplete(async ({ metadata, file }) => {
+        .onUploadComplete(async ({ file }) => {
             return { url: file.ufsUrl, name: file.name, key: file.key }
         }),
     profileImageUploader: f({
