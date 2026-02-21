@@ -170,7 +170,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             }))
 
             if (conv?.isPersisted) {
-                api.updateConversation(id, { model }).catch(console.error)
+                api.updateConversation(id, { model }).catch(() => { })
             }
         },
 
@@ -210,7 +210,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
                     // Update title in DB if changed AND persisted
                     if (isFirstUserMessage && conv!.isPersisted) { // Use conv!
-                        api.updateConversation(conversationId!, { title: newTitle }).catch(console.error)
+                        api.updateConversation(conversationId!, { title: newTitle }).catch(() => { })
                     }
 
                     return {
@@ -358,7 +358,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
             }))
 
             if (conv?.isPersisted) {
-                api.updateConversation(id, { title }).catch(console.error)
+                api.updateConversation(id, { title }).catch(() => { })
             }
         },
 

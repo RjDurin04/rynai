@@ -135,8 +135,7 @@ export function ChatInput({
                     webSearch: currentWebSearch,
                     editingMessageId: currentEditingMessageId || undefined
                 })
-            } catch (err) {
-                console.error("Failed to send message:", err instanceof Error ? err.message : "Unknown error")
+            } catch {
                 setImageError("Failed to start message. Please try again.")
                 // Revert UI state on immediate synchronous failure
                 setInput(currentInput)
@@ -235,8 +234,7 @@ export function ChatInput({
             mediaRecorder.start()
             setMediaRecorderRef(mediaRecorder)
             setIsRecording(true)
-        } catch (error) {
-            console.error("Error accessing microphone:", error instanceof Error ? error.message : "Unknown error")
+        } catch {
             setImageError("Microphone access denied.")
         }
     }
@@ -272,12 +270,10 @@ export function ChatInput({
                     }, 0)
                 }
             } else {
-                console.error("Transcription failed:", data.error)
                 const errorMsg = data.error || "Transcription failed. Please try again."
                 setImageError(errorMsg)
             }
         } catch (error) {
-            console.error("Transcription error:", error instanceof Error ? error.message : "Unknown error")
             let errorMessage = "Failed to send audio."
             if (!navigator.onLine || (error instanceof Error && (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")))) {
                 errorMessage = "Connection lost. Please check your internet and try again."

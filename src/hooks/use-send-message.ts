@@ -40,7 +40,6 @@ export function useSendMessage(): UseSendMessageReturn {
             !isActualizingRef.current
         ) {
             // Replaced abort with background continuation
-            console.log("Conversation switched, backgrounding generation...")
         }
         isActualizingRef.current = false
         prevActiveIdRef.current = newId

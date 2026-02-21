@@ -39,6 +39,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     try {
         const session = await requireAuth()
         const { id } = await params
+
         await requireConversationOwnership(id, session.user.id)
 
         const rawBody = await request.json()
@@ -95,6 +96,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     try {
         const session = await requireAuth()
         const { id: conversationId } = await params
+
         const rawBody = await request.json()
         const parsed = updateMessageSchema.safeParse(rawBody)
         if (!parsed.success) {

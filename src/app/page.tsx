@@ -133,7 +133,6 @@ export default function ChatPage() {
       audioRef.current = audio
       await audio.play()
     } catch (error) {
-      console.error(error)
       setSpeakingId(null)
       setIsSpeakingLoading(false)
     }

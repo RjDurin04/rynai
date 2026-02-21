@@ -27,9 +27,10 @@ export async function middleware(request: NextRequest) {
         return NextResponse.next()
     }
 
-    // Check for Better-Auth session cookie
+    // Check for Better-Auth session cookie (standard or secure)
     const sessionToken =
-        request.cookies.get("better-auth.session_token")?.value
+        request.cookies.get("better-auth.session_token")?.value ||
+        request.cookies.get("__Secure-better-auth.session_token")?.value
 
     if (!sessionToken) {
         // API routes → 401

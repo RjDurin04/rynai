@@ -181,8 +181,6 @@ export async function POST(request: Request) {
         // Diagnostic Logging (Removed for production-like quietness)
         /*
         const payloadString = JSON.stringify(groqMessages)
-        console.log(`[Chat API] Model: ${model}, WebSearch: ${useWebSearch}`)
-        ...
         */
 
         // Compound models (web search) do not support streaming

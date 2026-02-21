@@ -43,12 +43,10 @@ export async function requireConversationOwnership(conversationId: string, userI
     })
 
     if (!conversation) {
-        console.error(`[requireConversationOwnership] 404 Not Found for id: "${conversationId}", expecting userId: "${userId}"`)
         throw new ApiError("Conversation not found", 404)
     }
 
     if (conversation.userId !== userId) {
-        console.error(`[requireConversationOwnership] 403 Forbidden for id: "${conversationId}", found userId: "${conversation.userId}", expecting userId: "${userId}"`)
         throw new ApiError("Forbidden", 403)
     }
 }
