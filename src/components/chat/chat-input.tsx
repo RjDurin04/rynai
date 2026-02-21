@@ -7,8 +7,7 @@ import { Send, Plus, Globe, Sparkles, X, Mic, Square, Loader2 } from "lucide-rea
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
-import type { ImageAttachment, ChatModel, ReasoningEffort } from "@/types/chat"
-import { useUploadThing } from "@/lib/uploadthing"
+import type { ImageAttachment, ChatModel } from "@/types/chat"
 import { useSession } from "@/lib/auth-client"
 
 const MAX_IMAGE_SIZE = 4 * 1024 * 1024 // 4MB
@@ -18,19 +17,17 @@ const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"]
 interface ChatInputProps {
     onSendMessage: (content: string, options: { images?: ImageAttachment[], webSearch?: boolean, editingMessageId?: string }) => void
     isLoading?: boolean
+    isLoadingMessages?: boolean
     currentModel: ChatModel
     onModelSelect: (model: ChatModel) => void
-    reasoningEffort: ReasoningEffort
-    onReasoningEffortChange: (effort: ReasoningEffort) => void
 }
 
 export function ChatInput({
     onSendMessage,
     isLoading,
+    isLoadingMessages,
     currentModel,
-    onModelSelect,
-    reasoningEffort,
-    onReasoningEffortChange
+    onModelSelect
 }: ChatInputProps) {
     const [input, setInput] = React.useState("")
     const [images, setImages] = React.useState<ImageAttachment[]>([])
@@ -42,15 +39,8 @@ export function ChatInput({
     const fileInputRef = React.useRef<HTMLInputElement>(null)
     const [mediaRecorderRef, setMediaRecorderRef] = React.useState<MediaRecorder | null>(null)
     const [editingMessageId, setEditingMessageId] = React.useState<string | null>(null)
-    const [isUploading, setIsUploading] = React.useState(false)
     const { data: session } = useSession()
     const router = useRouter()
-
-    const { startUpload } = useUploadThing("chatImageUploader", {
-        onUploadError: (error) => {
-            console.error("UploadThing error:", error)
-        },
-    })
 
     const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setInput(e.target.value)
@@ -102,60 +92,37 @@ export function ChatInput({
             return
         }
 
-        if ((input.trim() || images.length > 0) && !isLoading && !isUploading) {
-            setIsUploading(true)
+        if ((input.trim() || images.length > 0) && !isLoading) {
+
+            // Capture state before resetting
+            const currentInput = input
+            const currentImages = [...images]
+            const currentEditingMessageId = editingMessageId
+            const currentWebSearch = webSearch
+
+            // Reset UI immediately for optimistic feeling
+            setInput("")
+            setImages([])
+            setEditingMessageId(null)
+            setImageError(null)
+            if (textareaRef.current) {
+                textareaRef.current.style.height = "auto"
+            }
+
             try {
-                let finalImages = [...images]
-
-                // Identify images that need uploading
-                const imagesToUpload = finalImages.filter(img => img.file && !img.url)
-
-                if (imagesToUpload.length > 0) {
-                    const filesToUpload = imagesToUpload.map(img => img.file!)
-                    const res = await startUpload(filesToUpload)
-
-                    if (res && res.length > 0) {
-                        // Map remote URLs back to our attachments
-                        finalImages = finalImages.map(img => {
-                            if (img.file) {
-                                const uploaded = res.find(r => r.name === img.fileName)
-                                if (uploaded) {
-                                    // UploadThing v7 returns our custom object in serverData, fallback to root if undefined
-                                    const url = uploaded.serverData?.url || uploaded.url
-                                    const key = uploaded.serverData?.key || uploaded.key
-
-                                    if (!url || !key) {
-                                        console.error("UploadThing response missing url/key:", uploaded)
-                                    }
-
-                                    return { ...img, url, key, file: undefined }
-                                }
-                            }
-                            return img
-                        })
-                    }
-                }
-
-                // Call onSendMessage with finalized images
-                const strippedImages = finalImages.map(({ file, ...rest }) => rest)
-                onSendMessage(input, {
-                    images: strippedImages.length > 0 ? strippedImages : undefined,
-                    webSearch,
-                    editingMessageId: editingMessageId || undefined
+                // Call onSendMessage with captured state
+                onSendMessage(currentInput, {
+                    images: currentImages.length > 0 ? currentImages : undefined,
+                    webSearch: currentWebSearch,
+                    editingMessageId: currentEditingMessageId || undefined
                 })
-
-                setInput("")
-                setImages([])
-                setEditingMessageId(null)
-                setImageError(null)
-                if (textareaRef.current) {
-                    textareaRef.current.style.height = "auto"
-                }
             } catch (err) {
-                console.error("Failed to send message:", err)
-                setImageError("Failed to upload images. Please try again.")
-            } finally {
-                setIsUploading(false)
+                console.error("Failed to send message:", err instanceof Error ? err.message : "Unknown error")
+                setImageError("Failed to start message. Please try again.")
+                // Revert UI state on immediate synchronous failure
+                setInput(currentInput)
+                setImages(currentImages)
+                setEditingMessageId(currentEditingMessageId)
             }
         }
     }
@@ -169,12 +136,7 @@ export function ChatInput({
             setImageError("Image must be under 4MB.")
             return
         }
-        if (images.length >= MAX_IMAGES) {
-            setImageError(`Maximum ${MAX_IMAGES} images per message.`)
-            return
-        }
 
-        setImageError(null)
         const reader = new FileReader()
         reader.onload = () => {
             const base64 = reader.result as string
@@ -184,25 +146,49 @@ export function ChatInput({
                 fileName: file.name,
                 file: file // Store the file locally for deferred upload
             }
-            setImages((prev) => [...prev, attachment])
+            setImages((prev) => {
+                if (prev.length >= MAX_IMAGES) return prev
+                return [...prev, attachment]
+            })
         }
         reader.readAsDataURL(file)
     }
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setImageError(null)
         const files = Array.from(e.target.files || [])
-        files.forEach(processFile)
+
+        const remainingSlots = Math.max(0, MAX_IMAGES - images.length)
+        const allowedFiles = files.slice(0, remainingSlots)
+
+        allowedFiles.forEach(processFile)
+
+        if (files.length > remainingSlots) {
+            setImageError(`Maximum ${MAX_IMAGES} images per message. Extra images were ignored.`)
+        }
+
         if (fileInputRef.current) fileInputRef.current.value = ""
     }
 
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = Array.from(e.clipboardData.items)
-        items.forEach((item) => {
-            if (item.type.indexOf("image") !== -1) {
-                const file = item.getAsFile()
-                if (file) processFile(file)
-            }
+        const imageItems = items.filter(item => item.type.indexOf("image") !== -1)
+
+        if (imageItems.length === 0) return
+
+        setImageError(null)
+
+        const remainingSlots = Math.max(0, MAX_IMAGES - images.length)
+        const allowedItems = imageItems.slice(0, remainingSlots)
+
+        allowedItems.forEach((item) => {
+            const file = item.getAsFile()
+            if (file) processFile(file)
         })
+
+        if (imageItems.length > remainingSlots) {
+            setImageError(`Maximum ${MAX_IMAGES} images per message. Extra images were ignored.`)
+        }
     }
 
     const removeImage = (index: number) => {
@@ -231,7 +217,7 @@ export function ChatInput({
             setMediaRecorderRef(mediaRecorder)
             setIsRecording(true)
         } catch (error) {
-            console.error("Error accessing microphone:", error)
+            console.error("Error accessing microphone:", error instanceof Error ? error.message : "Unknown error")
             setImageError("Microphone access denied.")
         }
     }
@@ -272,7 +258,7 @@ export function ChatInput({
                 setImageError(errorMsg)
             }
         } catch (error) {
-            console.error("Transcription error:", error)
+            console.error("Transcription error:", error instanceof Error ? error.message : "Unknown error")
             let errorMessage = "Failed to send audio."
             if (!navigator.onLine || (error instanceof Error && (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")))) {
                 errorMessage = "Connection lost. Please check your internet and try again."
@@ -281,6 +267,20 @@ export function ChatInput({
         } finally {
             setIsTranscribing(false)
         }
+    }
+
+    if (isLoadingMessages) {
+        return (
+            <motion.div
+                layout
+                className="group/input relative flex items-center justify-center min-h-[56px] bg-white/[0.03] backdrop-blur-3xl border border-white/10 rounded-[2.5rem] shadow-lg transition-all duration-300 pointer-events-none"
+            >
+                <div className="flex items-center gap-3 text-muted-foreground/60">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-[13px] font-medium tracking-tight">Loading conversation...</span>
+                </div>
+            </motion.div>
+        )
     }
 
     return (
@@ -418,7 +418,7 @@ export function ChatInput({
                         >
                             <Button
                                 onClick={handleSend}
-                                disabled={isLoading || isUploading || (() => {
+                                disabled={isLoading || (() => {
                                     const filteredModels = MODELS.filter(m => {
                                         if (webSearch && !m.capabilities.search) return false;
                                         if (images.length > 0 && !m.capabilities.vision) return false;
@@ -439,11 +439,7 @@ export function ChatInput({
                                     return filteredModels.length === 0 ? "No compatible model for current mode" : "Send message";
                                 })()}
                             >
-                                {isUploading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <Send className="h-4 w-4 mr-0.5" />
-                                )}
+                                <Send className="h-4 w-4 mr-0.5" />
                             </Button>
                         </motion.div>
                     ) : session ? (
@@ -478,45 +474,12 @@ export function ChatInput({
                         disabled={isLoading}
                         hasImages={images.length > 0}
                         isWebSearch={webSearch}
-                        reasoningEffort={reasoningEffort}
                         onModelButtonClick={() => {
                             if (textareaRef.current) {
                                 // Close other things if needed
                             }
                         }}
-                        onReasoningEffortChange={onReasoningEffortChange}
                     />
-
-                    <AnimatePresence mode="wait">
-                        {MODELS.find(m => m.id === currentModel)?.capabilities.reasoning && (
-                            <motion.div
-                                initial={{ opacity: 0, x: -10, width: 0 }}
-                                animate={{ opacity: 1, x: 0, width: "auto" }}
-                                exit={{ opacity: 0, x: -10, width: 0 }}
-                                transition={{ duration: 0.35, ease: [0.2, 0.8, 0.2, 1] }}
-                                className="flex items-center gap-1 overflow-hidden"
-                            >
-                                <div className="h-3 w-px bg-white/10 mx-1 shrink-0" />
-                                <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest px-1 shrink-0">Reasoning</span>
-                                <div className="flex bg-white/5 backdrop-blur-xl rounded-sm p-0.5">
-                                    {(["low", "medium", "high"] as const).map((effort) => (
-                                        <button
-                                            key={effort}
-                                            onClick={() => onReasoningEffortChange(effort)}
-                                            className={cn(
-                                                "px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all duration-300",
-                                                reasoningEffort === effort
-                                                    ? "bg-white/10 text-foreground shadow-sm"
-                                                    : "text-muted-foreground/50 hover:text-foreground/80 hover:bg-white/5"
-                                            )}
-                                        >
-                                            {effort}
-                                        </button>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
 
                     <div className="h-3 w-px bg-white/10 mx-1" />
                     <button

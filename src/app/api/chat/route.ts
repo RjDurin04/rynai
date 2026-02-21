@@ -160,7 +160,6 @@ export async function POST(request: Request) {
                 messages: groqMessages,
                 temperature: 0.7,
                 max_tokens: 4096, // Use max_tokens for Groq standard
-                ...(body.reasoning_effort && model.includes('o1') && { reasoning_effort: body.reasoning_effort }),
             } as any) // Type cast to allow max_tokens if SDK type is strictly OpenAI-like
 
             const message = completion.choices[0]?.message
@@ -204,7 +203,6 @@ export async function POST(request: Request) {
             max_tokens: 4096,
             top_p: 1,
             stream: true,
-            ...(body.reasoning_effort && model.includes('o1') && { reasoning_effort: body.reasoning_effort }),
         } as any)
 
         const encoder = new TextEncoder()

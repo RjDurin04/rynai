@@ -1,22 +1,51 @@
-# RynAI Chat
+# Chatbot
 
-A full-stack AI chat application built with Next.js 16, powered by the Groq API. Features real-time streaming responses, multi-model support, voice input/output, image understanding, web search, and persistent conversation history.
+A full-stack AI chat application built with Next.js 16, featuring real-time streaming responses, multi-modal inputs, voice I/O, web search, and persistent conversation history.
 
 ---
 
 ## Features
 
-- **Multi-model chat** — Switch between 15+ LLMs (Llama, GPT-OSS, Qwen, Kimi K2, Allam, Orpheus, and more) per conversation
-- **Streaming responses** — Server-Sent Events (SSE) for real-time token-by-token output
-- **Web search** — Groq Compound models perform live web searches and surface cited sources
-- **Vision / image understanding** — Attach up to 4 images (PNG, JPEG, WebP, GIF, max 4 MB each) via file picker, paste, or drag-and-drop; routed to vision-capable models automatically
-- **Voice input** — Record audio in-browser; transcribed via Whisper Large v3 Turbo
-- **Text-to-speech** — Read any assistant message aloud via Orpheus v1 English (WAV)
-- **Content safety** — Every user message is screened by Llama Guard 4 12B before being sent to the chat model
-- **Persistent history** — Conversations and messages are stored in PostgreSQL via Prisma; lazy-loaded on demand
-- **Authentication** — Email/password (with email verification) and Google OAuth via Better-Auth; session-cookie middleware protects all routes
-- **Profile management** — Update display name, upload profile photo (via UploadThing), delete chat history, or delete account
-- **Responsive UI** — Collapsible sidebar, mobile overlay drawer, animated transitions (Framer Motion), dark-mode-first design with Tailwind CSS v4
+### Core Chat
+- **Streaming responses** via Server-Sent Events (SSE) for real-time token delivery
+- **Multi-model support** — switch between 15+ LLMs from a single interface
+- **Conversation history** — persisted to PostgreSQL, loaded on demand
+- **Message editing** — edit any past user message and regenerate from that point
+- **Copy & regenerate** — copy any response or re-run the last assistant turn
+- **Auto-title generation** — conversation titles are derived from the first message
+
+### Multi-Modal
+- **Image uploads** — attach up to 4 images per message (max 4 MB each) via UploadThing
+- **Vision models** — images are sent as multi-modal content to compatible models; non-vision models receive text only
+- **Automatic model switching** — selecting an image auto-switches to a vision-capable model and reverts when images are removed
+
+### Voice
+- **Speech-to-text** — record audio directly in the browser; transcribed via Groq Whisper (`whisper-large-v3-turbo`)
+- **Text-to-speech** — any assistant message can be read aloud using Groq's Orpheus TTS model (`canopylabs/orpheus-v1-english`)
+
+### Web Search
+- **Compound models** — toggle web search to route queries through Groq's `compound-mini` or `compound` models, which return cited search results alongside the answer
+- **Search result cards** — sources are rendered inline below the response
+
+### Authentication
+- **Email/password** with mandatory email verification
+- **Google OAuth** via Better-Auth social providers
+- **Password reset** via email (EmailJS)
+- **Account linking** — sign in with Google on an existing email/password account
+- **Account deletion** — cascades to all conversations, messages, and uploaded images
+
+### Safety
+- Every user message is screened by **Llama Guard 4 12B** before being forwarded to the chat model; unsafe content is blocked with a reason code
+
+### Rate Limiting
+- Chat: **20 requests / minute** per user (Upstash Redis sliding window)
+- Audio: **10 requests / minute** per user
+- Gracefully degrades to no-op when Redis is not configured
+
+### Settings
+- Update display name and profile picture
+- Delete all chat history (with confirmation)
+- Delete account (with confirmation, cleans up all remote assets)
 
 ---
 
@@ -26,16 +55,44 @@ A full-stack AI chat application built with Next.js 16, powered by the Groq API.
 |---|---|
 | Framework | Next.js 16 (App Router) |
 | Language | TypeScript 5 (strict) |
-| Styling | Tailwind CSS v4 + shadcn/ui primitives |
+| Styling | Tailwind CSS v4 |
+| Components | shadcn/ui + Radix UI primitives |
 | Animation | Framer Motion |
-| AI / LLM | Groq SDK (chat, vision, web search, TTS, STT) |
-| Auth | Better-Auth v1 (email+password, Google OAuth, email verification) |
-| Database | PostgreSQL + Prisma 7 (pg adapter) |
-| File uploads | UploadThing v7 |
-| State | Zustand v5 |
-| Email | EmailJS (verification & password reset) |
+| Icons | Lucide React |
+| AI / LLM | Groq SDK |
+| Auth | Better-Auth v1 |
+| Database | PostgreSQL via Prisma 7 + `@prisma/adapter-pg` |
+| File Uploads | UploadThing |
+| Rate Limiting | Upstash Ratelimit + Upstash Redis |
+| Email | EmailJS |
+| State | Zustand |
+| Validation | Zod |
 | Testing | Vitest |
-| Linting | ESLint 9 |
+| Linting | ESLint (Next.js config) |
+
+---
+
+## Supported Models
+
+| Model ID | Name | Capabilities |
+|---|---|---|
+| `llama-3.3-70b-versatile` | Llama 3.3 70B | Text |
+| `llama-3.1-8b-instant` | Llama 3.1 8B | Text |
+| `meta-llama/llama-4-scout-17b-16e-instruct` | Llama 4 Scout | Text + Vision |
+| `meta-llama/llama-4-maverick-17b-128e-instruct` | Llama 4 Maverick | Text (128K context) |
+| `openai/gpt-oss-120b` | GPT-OSS 120B | Text |
+| `openai/gpt-oss-20b` | GPT-OSS 20B | Text |
+| `openai/gpt-oss-safeguard-20b` | GPT-OSS Safeguard | Text |
+| `qwen/qwen3-32b` | Qwen 3 32B | Text |
+| `moonshotai/kimi-k2-instruct` | Kimi K2 | Text |
+| `moonshotai/kimi-k2-instruct-0905` | Kimi K2 (Sept) | Text |
+| `allam-2-7b` | Allam 2 7B | Text (Arabic) |
+| `canopylabs/orpheus-arabic-saudi` | Orpheus Arabic | Text (Arabic) |
+| `canopylabs/orpheus-v1-english` | Orpheus English | Text |
+| `groq/compound-mini` | Compound Mini | Web Search |
+| `groq/compound` | Compound Pro | Web Search |
+
+All models are served through the Groq API.
 
 ---
 
@@ -44,66 +101,68 @@ A full-stack AI chat application built with Next.js 16, powered by the Groq API.
 ```
 src/
 ├── app/
-│   ├── page.tsx                    # Main chat page (client component)
-│   ├── layout.tsx                  # Root layout (dark mode, Toaster)
+│   ├── (auth)/                  # Auth route group (login, signup, forgot/reset password)
+│   ├── actions/auth.ts          # Server Actions for auth flows
+│   ├── api/
+│   │   ├── auth/[...all]/       # Better-Auth catch-all handler
+│   │   ├── chat/                # Main chat endpoint (streaming + web search)
+│   │   ├── audio/
+│   │   │   ├── speech/          # Text-to-speech (Groq Orpheus)
+│   │   │   └── transcription/   # Speech-to-text (Groq Whisper)
+│   │   ├── conversations/       # CRUD for conversations and messages
+│   │   ├── account/conversations/ # Account-scoped conversation list
+│   │   └── uploadthing/         # UploadThing file router
 │   ├── globals.css
-│   ├── (auth)/                     # Auth route group
-│   │   ├── login/
-│   │   ├── signup/
-│   │   ├── forgot-password/
-│   │   ├── reset-password/
-│   │   └── auth/check-email/
-│   ├── actions/
-│   │   └── auth.ts                 # Server Actions for auth
-│   └── api/
-│       ├── auth/[...all]/          # Better-Auth catch-all handler
-│       ├── chat/                   # POST — streaming chat + web search
-│       ├── audio/
-│       │   ├── speech/             # POST — text-to-speech (Orpheus WAV)
-│       │   └── transcription/      # POST — speech-to-text (Whisper)
-│       ├── conversations/          # CRUD for conversations + messages
-│       │   └── [id]/messages/
-│       ├── account/conversations/  # DELETE all conversations (bulk)
-│       └── uploadthing/            # UploadThing file router
+│   ├── layout.tsx
+│   └── page.tsx                 # Main chat page
 ├── components/
+│   ├── auth/                    # Sign-in and sign-up forms, auth modal
 │   ├── chat/
-│   │   ├── chat-layout.tsx         # Sidebar + main area shell
-│   │   ├── chat-input.tsx          # Textarea, image attach, voice, model selector
-│   │   ├── model-selector.tsx      # Animated model picker dropdown
-│   │   ├── sidebar.tsx             # Conversation list, user profile, settings
-│   │   ├── settings-dialog.tsx     # Profile, appearance, danger zone
-│   │   ├── markdown-renderer.tsx   # react-markdown + syntax highlighting
-│   │   └── error-banner.tsx        # Inline error display
-│   ├── auth/
-│   │   ├── auth-modal.tsx
-│   │   ├── sign-in-form.tsx
-│   │   └── sign-up-form.tsx
-│   └── ui/                         # shadcn/ui primitives (Button, Dialog, etc.)
+│   │   ├── chat-input.tsx       # Message composer (text, images, voice, web search toggle)
+│   │   ├── chat-layout.tsx      # Shell with sidebar
+│   │   ├── error-banner.tsx     # Connection/error display
+│   │   ├── markdown-renderer.tsx # Syntax-highlighted markdown
+│   │   ├── model-selector.tsx   # Model picker with capability filtering
+│   │   ├── settings-dialog.tsx  # Profile, chat history, account deletion
+│   │   └── sidebar.tsx          # Conversation list and navigation
+│   └── ui/                      # shadcn/ui primitives
 ├── config/
-│   ├── models.ts                   # Model IDs, defaults, vision model list
-│   └── prompts.ts                  # System prompts
+│   ├── models.ts                # Model IDs, defaults, vision model list
+│   └── prompts.ts               # System prompts
 ├── hooks/
-│   └── use-send-message.ts         # Core send/stream/persist hook
+│   └── use-send-message.ts      # Core send/stream/abort/persist logic
 ├── lib/
-│   ├── auth.ts                     # Better-Auth server config
-│   ├── auth-client.ts              # Better-Auth client helpers
-│   ├── db.ts                       # Prisma client singleton
-│   ├── safety.ts                   # Llama Guard content moderation
-│   ├── errors.ts                   # Connection error classifier
-│   ├── api-utils.ts                # requireAuth, isApiError helpers
-│   ├── uploadthing.ts              # UploadThing client
-│   ├── utils.ts                    # cn() and misc utilities
-│   └── api/
-│       └── conversations.ts        # Typed fetch wrappers for conversation API
-├── lib/store/
-│   └── chat-store.ts               # Zustand store (conversations, messages, drafts)
+│   ├── api/conversations.ts     # Client-side API helpers
+│   ├── store/chat-store.ts      # Zustand store (conversations, messages)
+│   ├── validators/              # Zod schemas for API inputs
+│   ├── auth.ts                  # Better-Auth server config
+│   ├── auth-client.ts           # Better-Auth client
+│   ├── db.ts                    # Prisma client singleton
+│   ├── errors.ts                # Error type helpers
+│   ├── rate-limit.ts            # Upstash rate limiters
+│   ├── safety.ts                # Llama Guard content moderation
+│   ├── uploadthing.ts           # UploadThing client helpers
+│   └── utils.ts                 # cn() utility
 └── types/
-    └── chat.ts                     # Message, Conversation, ChatModel, etc.
-prisma/
-├── schema.prisma                   # User, Session, Account, Verification, Conversation, Message, ImageAttachment
-└── migrations/
-middleware.ts                       # Session-cookie auth guard (Next.js Middleware)
+    └── chat.ts                  # Shared TypeScript types
 ```
+
+---
+
+## Database Schema
+
+```
+User ──< Session
+     ──< Account
+     ──< Conversation ──< Message ──< ImageAttachment
+Verification
+```
+
+- **User** — email, name, avatar, email-verified flag
+- **Session / Account / Verification** — managed by Better-Auth
+- **Conversation** — belongs to a user; stores selected model and reasoning settings
+- **Message** — role (`user` | `assistant`), text content, timestamp
+- **ImageAttachment** — UploadThing URL + key, linked to a message
 
 ---
 
@@ -113,12 +172,13 @@ middleware.ts                       # Session-cookie auth guard (Next.js Middlew
 
 - Node.js 22+
 - PostgreSQL database
-- Groq API key — [console.groq.com](https://console.groq.com)
-- UploadThing account — [uploadthing.com](https://uploadthing.com)
-- Google OAuth credentials (optional, for social login)
+- Groq API key
+- UploadThing account
+- Upstash Redis instance (optional — rate limiting is disabled without it)
 - EmailJS account (for email verification and password reset)
+- Google OAuth credentials (optional — for social login)
 
-### 1. Clone and install
+### Installation
 
 ```bash
 git clone <repo-url>
@@ -126,134 +186,131 @@ cd chatbot
 npm install
 ```
 
-### 2. Configure environment variables
+### Environment Variables
 
-Copy the provided `.env.example` file to create a `.env` file in the project root, and fill in your actual values:
+Create a `.env` file in the project root:
 
-```bash
-cp .env.example .env
+```env
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/dbname"
+
+# Groq
+GROQ_API_KEY="gsk_..."
+
+# Better-Auth
+BETTER_AUTH_SECRET="your-secret-here"
+BETTER_AUTH_URL="http://localhost:3000"
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID="..."
+GOOGLE_CLIENT_SECRET_KEY="..."
+
+# EmailJS
+EMAILJS_SERVICE_ID="..."
+EMAILJS_PUBLIC_KEY="..."
+EMAILJS_PRIVATE_KEY="..."
+EMAILJS_TEMPLATE_ID_VERIFY="..."
+EMAILJS_TEMPLATE_ID_RESET="..."
+
+# UploadThing
+UPLOADTHING_TOKEN="..."
+
+# Upstash Redis (optional — disables rate limiting if absent)
+UPSTASH_REDIS_REST_URL="..."
+UPSTASH_REDIS_REST_TOKEN="..."
 ```
 
-### 3. Set up the database
+### Database Setup
 
 ```bash
 npx prisma migrate deploy
-npx prisma generate
 ```
 
-### 4. Run the development server
+### Development
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
----
+### Production Build
 
-## Available Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Production build |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm test` | Run Vitest test suite |
-
----
-
-## API Routes
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/chat` | Send a message; streams SSE for regular models, returns JSON for web-search models |
-| `POST` | `/api/audio/speech` | Convert text to speech (WAV) via Orpheus v1 English |
-| `POST` | `/api/audio/transcription` | Transcribe audio to text via Whisper Large v3 Turbo |
-| `GET` | `/api/conversations` | List all conversations for the authenticated user |
-| `POST` | `/api/conversations` | Create a new conversation |
-| `GET` | `/api/conversations/[id]` | Get a single conversation |
-| `PATCH` | `/api/conversations/[id]` | Update conversation (title, model, reasoning settings) |
-| `DELETE` | `/api/conversations/[id]` | Delete a conversation |
-| `GET` | `/api/conversations/[id]/messages` | List messages for a conversation |
-| `POST` | `/api/conversations/[id]/messages` | Add a message to a conversation |
-| `DELETE` | `/api/account/conversations` | Delete all conversations for the authenticated user |
-| `*` | `/api/auth/[...all]` | Better-Auth handler (sign-in, sign-up, OAuth, session, etc.) |
-| `*` | `/api/uploadthing` | UploadThing file upload handler |
-
-All routes except `/api/auth/*` and `/api/uploadthing` require an authenticated session.
-
----
-
-## Supported Models
-
-| Model ID | Name | Capabilities |
-|---|---|---|
-| `llama-3.3-70b-versatile` | Llama 3.3 70B | Text (default) |
-| `llama-3.1-8b-instant` | Llama 3.1 8B | Text (fast) |
-| `meta-llama/llama-4-scout-17b-16e-instruct` | Llama 4 Scout | Text + Vision |
-| `meta-llama/llama-4-maverick-17b-128e-instruct` | Llama 4 Maverick | Text (128K context) |
-| `openai/gpt-oss-120b` | GPT-OSS 120B | Text |
-| `openai/gpt-oss-20b` | GPT-OSS 20B | Text |
-| `openai/gpt-oss-safeguard-20b` | GPT-OSS Safeguard | Text (safety-focused) |
-| `qwen/qwen3-32b` | Qwen 3 32B | Text (coding/math) |
-| `moonshotai/kimi-k2-instruct` | Kimi K2 | Text |
-| `moonshotai/kimi-k2-instruct-0905` | Kimi K2 (Sept) | Text |
-| `allam-2-7b` | Allam 2 7B | Text (Arabic) |
-| `canopylabs/orpheus-arabic-saudi` | Orpheus Arabic | Text (Arabic) |
-| `canopylabs/orpheus-v1-english` | Orpheus English | Text |
-| `groq/compound` | Compound Pro | Web search |
-| `groq/compound-mini` | Compound Mini | Web search |
-
-The model selector automatically filters available models based on whether images are attached or web search is enabled.
-
----
-
-## Database Schema
-
-```
-User          — id, name, email, emailVerified, image
-Session       — id, userId, token, expiresAt, ipAddress, userAgent
-Account       — id, userId, accountId, providerId, accessToken, ...
-Verification  — id, identifier, value, expiresAt
-Conversation  — id, userId, title, model, reasoningEffort, reasoningFormat
-Message       — id, conversationId, role, content
-ImageAttachment — id, messageId, url, key, fileName, mimeType
+```bash
+npm run build   # runs prisma generate + migrate deploy + next build
+npm start
 ```
 
-Cascade deletes are configured throughout: deleting a user removes all their conversations, messages, and UploadThing image files.
+---
+
+## API Reference
+
+### `POST /api/chat`
+Streams an AI response. Requires authentication.
+
+**Request body:**
+```json
+{
+  "messages": [{ "role": "user", "content": "Hello", "images": [] }],
+  "model": "llama-3.3-70b-versatile",
+  "webSearch": false
+}
+```
+
+**Response:** `text/event-stream` — chunks of `data: {"content":"..."}` terminated by `data: [DONE]`.  
+Web search models return a JSON object `{ content, searchResults }` instead of a stream.
 
 ---
 
-## Authentication Flow
+### `POST /api/audio/transcription`
+Transcribes an audio file. Requires authentication.
 
-1. **Sign up** — email + password; verification email sent via EmailJS
-2. **Email verification** — user clicks link; auto-signed in after verification
-3. **Google OAuth** — one-click sign-in; accounts linked automatically if email matches
-4. **Password reset** — forgot-password flow sends reset link via EmailJS
-5. **Session guard** — `middleware.ts` checks for `better-auth.session_token` cookie on every non-public route; API routes return `401`, page routes redirect to `/login`
+**Request:** `multipart/form-data` with a `file` field (flac, m4a, mp3, mp4, ogg, wav, webm).
 
----
-
-## Content Safety
-
-Every user message is passed through **Llama Guard 4 12B** before reaching the chat model. If the message is flagged as unsafe, the API returns a `400` with the violation category. The safety check fails closed — if the guard model is unreachable, the message is blocked.
+**Response:** `{ "text": "transcribed text" }`
 
 ---
 
-## Image Uploads
+### `POST /api/audio/speech`
+Generates speech from text. Requires authentication.
 
-Images are uploaded to **UploadThing** (region: `sea1`) before being sent to the chat API. The UploadThing URL is stored in the `ImageAttachment` table and passed to vision models as `image_url` content parts. When a user's account is deleted, all associated UploadThing files are deleted via `UTApi.deleteFiles`.
+**Request body:** `{ "text": "...", "voice": "en-US-JennyNeural" }`
+
+**Response:** `audio/wav` binary stream.
 
 ---
 
-## Deployment
+### `GET /api/conversations`
+Returns the authenticated user's conversation list (without messages).
 
-The application is designed to deploy on **Vercel** with a managed PostgreSQL database (e.g., Vercel Postgres, Neon, or Supabase).
+### `POST /api/conversations`
+Creates a new conversation.
 
-1. Push to GitHub and import the repository in Vercel
-2. Set all environment variables in the Vercel dashboard
-3. Run `npx prisma migrate deploy` against your production database
-4. Deploy
+### `GET /api/conversations/:id/messages`
+Returns all messages for a conversation (lazy-loaded).
 
-For other platforms, ensure the Node.js runtime is 22+ and all environment variables are set.
+### `PATCH /api/conversations/:id`
+Updates conversation title or model.
+
+### `DELETE /api/conversations/:id`
+Deletes a conversation and all its messages and image attachments.
+
+---
+
+## Testing
+
+```bash
+npm test
+```
+
+Tests are located in `tests/` and mirror the `src/` structure. The suite uses Vitest.
+
+---
+
+## Security
+
+- All API routes (except auth and UploadThing callbacks) require a valid Better-Auth session cookie, enforced at the middleware layer.
+- Every user message is screened by Llama Guard 4 before reaching the chat model.
+- Rate limiting is applied per-user via Upstash Redis sliding windows.
+- Account deletion cascades to all user data including remote UploadThing assets.
+- Email verification is required before a new account can sign in.

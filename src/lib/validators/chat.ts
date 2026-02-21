@@ -35,6 +35,4 @@ export const chatRequestSchema = z.object({
     })).min(1).max(100),
     webSearch: z.boolean().optional(),
     model: z.string().refine(m => ALLOWED_MODELS.has(m), "Invalid model").optional(),
-    reasoning_effort: z.enum(["low", "medium", "high"]).optional(),
-    reasoning_format: z.enum(["raw", "parsed", "hidden"]).optional(),
 })

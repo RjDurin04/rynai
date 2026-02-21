@@ -1,8 +1,5 @@
 export type MessageRole = "user" | "assistant" | "system"
 
-export type ReasoningEffort = "low" | "medium" | "high"
-export type ReasoningFormat = "raw" | "parsed" | "hidden"
-
 export type ImageAttachment = {
     url?: string
     key?: string
@@ -50,11 +47,10 @@ export type Conversation = {
     id: string
     title: string
     model: ChatModel
-    reasoningEffort?: ReasoningEffort
-    reasoningFormat?: ReasoningFormat
     messages: Message[]
     messageCount?: number
     isPersisted?: boolean
+    isLoadingMessages?: boolean
     createdAt: number
     updatedAt: number
 }

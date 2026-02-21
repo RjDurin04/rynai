@@ -4,6 +4,7 @@ import * as React from "react"
 import { useChatStore, generateId } from "@/lib/store/chat-store"
 import type { ImageAttachment, Message, SearchResult } from "@/types/chat"
 import { toast } from "sonner"
+import { useUploadThing } from "@/lib/uploadthing"
 
 interface SendMessageOptions {
     images?: ImageAttachment[]
@@ -25,13 +26,21 @@ export function useSendMessage(): UseSendMessageReturn {
     const isActualizingRef = React.useRef(false)
     const prevActiveIdRef = React.useRef<string | null>(null)
 
+    const { startUpload } = useUploadThing("chatImageUploader", {
+        onUploadError: (error) => {
+            console.error("UploadThing error:", error instanceof Error ? error.message : "Unknown error", error)
+            toast.error(`Upload error: ${error instanceof Error ? error.message : "Unknown"}`)
+        },
+    })
+
     const onConversationChange = React.useCallback((newId: string | null) => {
         if (
             prevActiveIdRef.current !== null &&
             prevActiveIdRef.current !== newId &&
             !isActualizingRef.current
         ) {
-            abortRef.current?.abort()
+            // Replaced abort with background continuation
+            console.log("Conversation switched, backgrounding generation...")
         }
         isActualizingRef.current = false
         prevActiveIdRef.current = newId
@@ -52,8 +61,10 @@ export function useSendMessage(): UseSendMessageReturn {
 
         let currentId = state.activeConversationId
         let assistantId = retryAssistantId
+        let targetUserMessageId: string | undefined
 
         if (editingMessageId) {
+            targetUserMessageId = editingMessageId
             updateMessage(currentId, editingMessageId, { content, images })
             const currentMessages = useChatStore.getState().getActiveConversation()?.messages ?? []
             const userIdx = currentMessages.findIndex(m => m.id === editingMessageId)
@@ -80,8 +91,9 @@ export function useSendMessage(): UseSendMessageReturn {
                 if (!currentId) currentId = useChatStore.getState().activeConversationId
             }
         } else if (!assistantId) {
+            targetUserMessageId = generateId()
             const userMessage: Message = {
-                id: generateId(),
+                id: targetUserMessageId,
                 role: "user",
                 content,
                 images,
@@ -114,6 +126,48 @@ export function useSendMessage(): UseSendMessageReturn {
 
         setIsLoading(true)
         abortRef.current = new AbortController()
+
+        let finalImages = images ? [...images] : undefined
+        try {
+            if (finalImages && finalImages.length > 0) {
+                const imagesToUpload = finalImages.filter(img => img.file && !img.url)
+                if (imagesToUpload.length > 0) {
+                    const filesToUpload = imagesToUpload.map(img => img.file!)
+                    const res = await startUpload(filesToUpload)
+
+                    if (res && res.length === filesToUpload.length) {
+                        let uploadIndex = 0
+                        finalImages = finalImages.map(img => {
+                            if (img.file) {
+                                const uploaded = res[uploadIndex++]
+                                if (uploaded) {
+                                    const url = uploaded.serverData?.url || uploaded.url
+                                    const key = uploaded.serverData?.key || uploaded.key
+                                    return { ...img, url, key, file: undefined }
+                                }
+                            }
+                            return img
+                        })
+                        if (targetUserMessageId) {
+                            updateMessage(currentId, targetUserMessageId, { images: finalImages })
+                        }
+                    } else {
+                        throw new Error("Upload failed or incomplete")
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Upload error", err)
+            if (assistantId) {
+                updateMessage(currentId, assistantId, {
+                    content: "Failed to upload images.",
+                    isStreaming: false,
+                    error: err instanceof Error ? err.message : "Unknown error"
+                })
+            }
+            setIsLoading(false)
+            return
+        }
 
         let accumulated = ""
 
@@ -152,8 +206,6 @@ export function useSendMessage(): UseSendMessageReturn {
                     messages: apiMessages,
                     webSearch: webSearch ?? false,
                     model: latestConv?.model || latestState.draftModel,
-                    reasoning_effort: latestConv?.reasoningEffort || latestState.draftReasoningEffort,
-                    reasoning_format: latestConv?.reasoningFormat || latestState.draftReasoningFormat,
                 }),
                 signal: abortRef.current.signal,
             })
@@ -295,7 +347,13 @@ export function useSendMessage(): UseSendMessageReturn {
             setIsLoading(false)
             abortRef.current = null
         }
-    }, [])
+    }, [startUpload])
 
-    return { handleSendMessage, isLoading, abortRef, onConversationChange }
+    // Derive isLoading from the store so it updates instantly when switching chats
+    const activeConversationIsStreaming = useChatStore(s =>
+        s.getActiveConversation()?.messages.some(m => m.isStreaming) ?? false
+    )
+    const effectiveIsLoading = isLoading || activeConversationIsStreaming
+
+    return { handleSendMessage, isLoading: effectiveIsLoading, abortRef, onConversationChange }
 }

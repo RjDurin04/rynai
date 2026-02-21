@@ -1,4 +1,4 @@
-import type { ChatModel, ReasoningEffort, ReasoningFormat } from "@/types/chat"
+import type { ChatModel } from "@/types/chat"
 
 /**
  * Centralized model configuration constants.
@@ -7,12 +7,6 @@ import type { ChatModel, ReasoningEffort, ReasoningFormat } from "@/types/chat"
 
 /** Default model for new conversations */
 export const DEFAULT_MODEL: ChatModel = "llama-3.3-70b-versatile"
-
-/** Default reasoning effort for new conversations */
-export const DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium"
-
-/** Default reasoning format for new conversations */
-export const DEFAULT_REASONING_FORMAT: ReasoningFormat = "parsed"
 
 /** Default model for chat (non-vision, non-search) */
 export const MODEL_CHAT = "llama-3.3-70b-versatile"

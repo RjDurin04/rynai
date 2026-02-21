@@ -12,7 +12,7 @@ import { Bot, User as UserIcon, Sparkles, Globe, ExternalLink, AlertCircle, Volu
 import { useChatStore } from "@/lib/store/chat-store"
 import { useSendMessage } from "@/hooks/use-send-message"
 import { authClient } from "@/lib/auth-client"
-import type { ImageAttachment, Message, SearchResult, ChatModel, ReasoningEffort } from "@/types/chat"
+import type { ImageAttachment, Message, SearchResult, ChatModel } from "@/types/chat"
 
 export default function ChatPage() {
   const { data: session, isPending: isSessionLoading } = authClient.useSession()
@@ -21,14 +21,8 @@ export default function ChatPage() {
     s.conversations.find((c) => c.id === s.activeConversationId)
   )
   const setConversationModel = useChatStore((s) => s.setConversationModel)
-  const setConversationReasoningEffort = useChatStore((s) => s.setConversationReasoningEffort)
-  const setConversationReasoningFormat = useChatStore((s) => s.setConversationReasoningFormat)
   const setDraftModel = useChatStore((s) => s.setDraftModel)
-  const setDraftReasoningEffort = useChatStore((s) => s.setDraftReasoningEffort)
-  const setDraftReasoningFormat = useChatStore((s) => s.setDraftReasoningFormat)
   const draftModel = useChatStore((s) => s.draftModel)
-  const draftReasoningEffort = useChatStore((s) => s.draftReasoningEffort)
-  const draftReasoningFormat = useChatStore((s) => s.draftReasoningFormat)
   const loadConversations = useChatStore((s) => s.loadConversations)
   const isLoaded = useChatStore((s) => s.isLoaded)
   const conversations = useChatStore((s) => s.conversations)
@@ -201,29 +195,26 @@ export default function ChatPage() {
       >
         <div className="max-w-4xl mx-auto pb-35">
           {/* Empty state */}
-          <AnimatePresence>
-            {messages.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-                className="flex flex-col items-center justify-center min-h-[60vh] md:min-h-[40vh] text-center mb-8"
-              >
-                <div className="h-16 w-16 mb-8 items-center justify-center rounded-2xl bg-foreground/5 border border-foreground/10 shadow-xl shadow-black/5 flex overflow-hidden p-3 transition-transform duration-500 hover:scale-110">
-                  <img src="/logo.png" alt="RynAI" className="h-full w-full object-contain invert opacity-80" />
-                </div>
-                <h2 className="text-3xl font-bold text-foreground mb-4">
-                  {session?.user?.name ? `Hello, ${session.user.name.split(' ')[0]}!` : "RynAI"}
-                </h2>
-                <p className="text-3xl text-muted-foreground/60 max-w-xl font-normal leading-relaxed">
-                  {session?.user?.name
-                    ? "What can I help you with today?"
-                    : "How can I help you today?"}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {messages.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex flex-col items-center justify-center min-h-[60vh] md:min-h-[40vh] text-center mb-8"
+            >
+              <div className="h-16 w-16 mb-8 items-center justify-center rounded-2xl bg-foreground/5 border border-foreground/10 shadow-xl shadow-black/5 flex overflow-hidden p-3 transition-transform duration-500 hover:scale-110">
+                <img src="/logo.png" alt="RynAI" className="h-full w-full object-contain invert opacity-80" />
+              </div>
+              <h2 className="text-3xl font-bold text-foreground mb-4">
+                {session?.user?.name ? `Hello, ${session.user.name.split(' ')[0]}!` : "RynAI"}
+              </h2>
+              <p className="text-3xl text-muted-foreground/60 max-w-xl font-normal leading-relaxed">
+                {session?.user?.name
+                  ? "What can I help you with today?"
+                  : "How can I help you today?"}
+              </p>
+            </motion.div>
+          )}
 
           <AnimatePresence initial={false}>
             {messages.map((message, index) => {
@@ -302,7 +293,7 @@ export default function ChatPage() {
                       {message.role === "assistant" && message.isStreaming && (
                         <div className="flex items-center gap-1.5 py-1 mb-2">
                           <span className="text-[8px] font-black text-primary/80 uppercase animate-pulse">
-                            Thinking
+                            Generating
                           </span>
                           <div className="flex gap-0.5">
                             <span className="w-0.5 h-0.5 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
@@ -505,14 +496,11 @@ export default function ChatPage() {
             <ChatInput
               onSendMessage={handleSendMessage}
               isLoading={isLoading}
+              isLoadingMessages={activeConversation?.isLoadingMessages}
               currentModel={activeConversation?.model || draftModel}
               onModelSelect={React.useCallback((model: ChatModel) => {
                 setConversationModel(activeConversationId, model)
               }, [activeConversationId, setConversationModel])}
-              reasoningEffort={activeConversation?.reasoningEffort || draftReasoningEffort}
-              onReasoningEffortChange={React.useCallback((effort: ReasoningEffort) => {
-                setConversationReasoningEffort(activeConversationId, effort)
-              }, [activeConversationId, setConversationReasoningEffort])}
             />
           </div>
         </motion.div>

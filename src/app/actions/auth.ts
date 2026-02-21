@@ -24,7 +24,7 @@ export async function checkUnverifiedUser(email: string): Promise<boolean> {
         // This prevents hackers from knowing if a verified account exists.
         return user !== null && !user.emailVerified;
     } catch (error) {
-        console.error("Error checking unverified user:", error);
+        console.error("Error checking unverified user:", error instanceof Error ? error.message : "Unknown error");
         return false;
     }
 }

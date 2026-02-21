@@ -15,8 +15,6 @@ export const createConversationSchema = z.object({
 export const updateConversationSchema = z.object({
     title: z.string().optional(),
     model: z.string().optional(),
-    reasoningEffort: z.enum(["low", "medium", "high"]).optional(),
-    reasoningFormat: z.enum(["raw", "parsed", "hidden"]).optional(),
 })
 
 export const createMessageSchema = z.object({

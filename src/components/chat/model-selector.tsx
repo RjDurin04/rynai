@@ -4,7 +4,7 @@ import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown, Cpu, Zap, BrainCircuit, Code2, Shield, Globe, Bot, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ChatModel, ReasoningEffort } from "@/types/chat"
+import type { ChatModel } from "@/types/chat"
 
 export const MODELS = [
     {
@@ -13,7 +13,7 @@ export const MODELS = [
         description: "Massive intelligence for complex reasoning",
         icon: BrainCircuit,
         color: "text-foreground/50",
-        capabilities: { text: true, vision: false, search: false, reasoning: false },
+        capabilities: { text: true, vision: false, search: false },
     },
     {
         id: "llama-3.3-70b-versatile" as const,
@@ -21,7 +21,7 @@ export const MODELS = [
         description: "Most powerful model for complex tasks",
         icon: Cpu,
         color: "text-foreground/50",
-        capabilities: { text: true, vision: false, search: false, reasoning: false },
+        capabilities: { text: true, vision: false, search: false },
     },
     {
         id: "meta-llama/llama-4-scout-17b-16e-instruct" as const,
@@ -53,7 +53,7 @@ export const MODELS = [
         description: "Specialized for deep reasoning logic",
         icon: BrainCircuit,
         color: "text-foreground/50",
-        capabilities: { text: true, vision: false, search: false, reasoning: false },
+        capabilities: { text: true, vision: false, search: false },
     },
     {
         id: "llama-3.1-8b-instant" as const,
@@ -61,7 +61,7 @@ export const MODELS = [
         description: "Fastest response time for simple queries",
         icon: Zap,
         color: "text-foreground/50",
-        capabilities: { text: true, vision: false, search: false, reasoning: false },
+        capabilities: { text: true, vision: false, search: false },
     },
     {
         id: "groq/compound-mini" as const,
@@ -77,7 +77,7 @@ export const MODELS = [
         description: "Reasoning model with safety focus",
         icon: Shield,
         color: "text-foreground/50",
-        capabilities: { text: true, vision: false, search: false, reasoning: false },
+        capabilities: { text: true, vision: false, search: false },
     },
     {
         id: "meta-llama/llama-4-maverick-17b-128e-instruct" as const,
@@ -135,8 +135,6 @@ interface ModelSelectorProps {
     disabled?: boolean
     hasImages?: boolean
     isWebSearch?: boolean
-    reasoningEffort: ReasoningEffort
-    onReasoningEffortChange: (effort: ReasoningEffort) => void
     onModelButtonClick?: (isOpen: boolean) => void
 }
 

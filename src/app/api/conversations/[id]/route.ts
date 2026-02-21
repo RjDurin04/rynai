@@ -21,15 +21,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
                 { status: 400 }
             )
         }
-        const { title, model, reasoningEffort, reasoningFormat } = parsed.data
+        const { title, model } = parsed.data
 
         const conversation = await prisma.conversation.update({
             where: { id },
             data: {
                 ...(title !== undefined && { title }),
                 ...(model !== undefined && { model }),
-                ...(reasoningEffort !== undefined && { reasoningEffort }),
-                ...(reasoningFormat !== undefined && { reasoningFormat }),
             },
         })
 
@@ -38,7 +36,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         if (isApiError(error)) {
             return NextResponse.json({ error: error.message }, { status: error.statusCode })
         }
-        console.error("Failed to update conversation:", error)
+        console.error("Failed to update conversation:", error instanceof Error ? error.message : "Unknown error")
         return NextResponse.json(
             { error: "Failed to update conversation" },
             { status: 500 }
@@ -77,7 +75,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
             try {
                 await utapi.deleteFiles(keys)
             } catch (error) {
-                console.error("Failed to delete files from UploadThing:", error)
+                console.error("Failed to delete files from UploadThing:", error instanceof Error ? error.message : "Unknown error")
                 // Continue with DB deletion even if image deletion fails
             }
         }
@@ -91,7 +89,7 @@ export async function DELETE(_request: Request, { params }: RouteParams) {
         if (isApiError(error)) {
             return NextResponse.json({ error: error.message }, { status: error.statusCode })
         }
-        console.error("Failed to delete conversation:", error)
+        console.error("Failed to delete conversation:", error instanceof Error ? error.message : "Unknown error")
         return NextResponse.json(
             { error: "Failed to delete conversation" },
             { status: 500 }

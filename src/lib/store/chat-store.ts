@@ -1,8 +1,8 @@
 "use client"
 
 import { create } from "zustand"
-import type { Conversation, Message, ChatModel, ReasoningEffort, ReasoningFormat } from "@/types/chat"
-import { DEFAULT_MODEL, DEFAULT_REASONING_EFFORT, DEFAULT_REASONING_FORMAT } from "@/config/models"
+import type { Conversation, Message, ChatModel } from "@/types/chat"
+import { DEFAULT_MODEL } from "@/config/models"
 import * as api from "@/lib/api/conversations"
 
 type ChatStore = {
@@ -10,8 +10,6 @@ type ChatStore = {
     activeConversationId: string | null
     isLoaded: boolean
     draftModel: ChatModel
-    draftReasoningEffort: ReasoningEffort
-    draftReasoningFormat: ReasoningFormat
 
     persistingIds: Set<string>
 
@@ -20,8 +18,6 @@ type ChatStore = {
     deleteConversation: (id: string) => Promise<void>
     setActiveConversation: (id: string | null) => void
     setConversationModel: (id: string | null, model: ChatModel) => void
-    setConversationReasoningEffort: (id: string | null, effort: ReasoningEffort) => void
-    setConversationReasoningFormat: (id: string | null, format: ReasoningFormat) => void
     addMessage: (conversationId: string | null, message: Message) => void
     updateMessage: (conversationId: string | null, messageId: string, updates: Partial<Message>) => void
     updateConversationTitle: (id: string | null, title: string) => void
@@ -29,8 +25,6 @@ type ChatStore = {
     persistMessage: (conversationId: string | null, message: Message, isEdit?: boolean) => Promise<string | undefined>
     loadMessagesForConversation: (id: string | null) => Promise<void>
     setDraftModel: (model: ChatModel) => void
-    setDraftReasoningEffort: (effort: ReasoningEffort) => void
-    setDraftReasoningFormat: (format: ReasoningFormat) => void
     clearAllConversations: () => void
 }
 
@@ -74,8 +68,6 @@ export const useChatStore = create<ChatStore>((set, get) => {
         activeConversationId: null,
         isLoaded: false,
         draftModel: DEFAULT_MODEL,
-        draftReasoningEffort: DEFAULT_REASONING_EFFORT,
-        draftReasoningFormat: DEFAULT_REASONING_FORMAT,
         persistingIds: new Set<string>(),
 
         loadConversations: async () => {
@@ -95,8 +87,6 @@ export const useChatStore = create<ChatStore>((set, get) => {
                     id: conv.id as string,
                     title: conv.title as string,
                     model: (conv.model as ChatModel) || DEFAULT_MODEL,
-                    reasoningEffort: conv.reasoningEffort as ReasoningEffort || DEFAULT_REASONING_EFFORT,
-                    reasoningFormat: conv.reasoningFormat as ReasoningFormat || DEFAULT_REASONING_FORMAT,
                     messages: [], // Initialize empty
                     messageCount: conv._count?.messages || 0,
                     isPersisted: true,
@@ -134,8 +124,6 @@ export const useChatStore = create<ChatStore>((set, get) => {
                 activeConversationId: null, // Set active to null to indicate a new, unsaved chat
                 // Reset draft settings for a completely fresh start
                 draftModel: DEFAULT_MODEL,
-                draftReasoningEffort: DEFAULT_REASONING_EFFORT,
-                draftReasoningFormat: DEFAULT_REASONING_FORMAT,
             })
             sessionStorage.removeItem('active-conversation-id') // Clear stored active ID
             return "new" // Return a dummy string since it's now nullable
@@ -193,51 +181,15 @@ export const useChatStore = create<ChatStore>((set, get) => {
             }
         },
 
-        setConversationReasoningEffort: (id, effort) => {
-            if (!id) { // Handle null ID for draft settings
-                set({ draftReasoningEffort: effort })
-                return
-            }
-            const conv = get().conversations.find(c => c.id === id)
-            set((state) => ({
-                conversations: state.conversations.map((c) =>
-                    c.id === id ? { ...c, reasoningEffort: effort, updatedAt: Date.now() } : c
-                ),
-            }))
-
-            if (conv?.isPersisted) {
-                api.updateConversation(id, { reasoningEffort: effort }).catch(console.error)
-            }
-        },
-
-        setConversationReasoningFormat: (id, format) => {
-            if (!id) { // Handle null ID for draft settings
-                set({ draftReasoningFormat: format })
-                return
-            }
-            const conv = get().conversations.find(c => c.id === id)
-            set((state) => ({
-                conversations: state.conversations.map((c) =>
-                    c.id === id ? { ...c, reasoningFormat: format, updatedAt: Date.now() } : c
-                ),
-            }))
-
-            if (conv?.isPersisted) {
-                api.updateConversation(id, { reasoningFormat: format }).catch(console.error)
-            }
-        },
-
         addMessage: (conversationId, message) => {
             let conv = conversationId ? get().conversations.find(c => c.id === conversationId) : undefined
 
             // If no conversation exists (New Chat flow), create it locally
             if (!conv) {
-                const { draftModel, draftReasoningEffort, draftReasoningFormat } = get()
+                const { draftModel } = get()
                 conv = {
                     ...createNewConversationLocally(),
                     model: draftModel,
-                    reasoningEffort: draftReasoningEffort,
-                    reasoningFormat: draftReasoningFormat,
                     messages: [message],
                     messageCount: 1,
                     title: message.role === "user"
@@ -291,12 +243,10 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
                 // If no conversation exists (New Chat), create it locally first
                 if (!conv && !isEdit) {
-                    const { draftModel, draftReasoningEffort, draftReasoningFormat } = get()
+                    const { draftModel } = get()
                     conv = {
                         ...createNewConversationLocally(),
                         model: draftModel,
-                        reasoningEffort: draftReasoningEffort,
-                        reasoningFormat: draftReasoningFormat,
                     }
                     set(state => ({
                         conversations: [conv!, ...state.conversations],
@@ -421,6 +371,13 @@ export const useChatStore = create<ChatStore>((set, get) => {
             const conv = get().conversations.find(c => c.id === id)
             if (!conv || !conv.isPersisted) return
 
+            // Set loading state
+            set((state) => ({
+                conversations: state.conversations.map((c) =>
+                    c.id === id ? { ...c, isLoadingMessages: true } : c
+                )
+            }))
+
             try {
                 const msgsRes = await api.fetchMessages(id)
                 if (!msgsRes.ok) return
@@ -442,16 +399,20 @@ export const useChatStore = create<ChatStore>((set, get) => {
 
                 set((state) => ({
                     conversations: state.conversations.map((c) =>
-                        c.id === id ? { ...c, messages: mappedMessages } : c
+                        c.id === id ? { ...c, messages: mappedMessages, isLoadingMessages: false } : c
                     )
                 }))
             } catch (error) {
                 console.error(`Failed to load messages for conversation ${id}:`, error)
+                // Reset loading state on error
+                set((state) => ({
+                    conversations: state.conversations.map((c) =>
+                        c.id === id ? { ...c, isLoadingMessages: false } : c
+                    )
+                }))
             }
         },
         setDraftModel: (model) => set({ draftModel: model }),
-        setDraftReasoningEffort: (effort) => set({ draftReasoningEffort: effort }),
-        setDraftReasoningFormat: (format) => set({ draftReasoningFormat: format }),
         clearAllConversations: () => set({ conversations: [], activeConversationId: null }),
     }
 })

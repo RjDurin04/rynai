@@ -187,6 +187,13 @@ export function Sidebar({ className, isCollapsed, setIsCollapsed }: SidebarProps
                                                             {conv.title}
                                                         </span>
                                                     )}
+
+                                                    {/* Background Streaming Indicator */}
+                                                    {conv.messages?.some(m => m.isStreaming) && (
+                                                        <div className="shrink-0 flex items-center justify-center -translate-y-px mr-1">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-primary/80 animate-pulse shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div className="flex items-center gap-1 opacity-0 group-hover/item:opacity-100 transition-opacity duration-200">
